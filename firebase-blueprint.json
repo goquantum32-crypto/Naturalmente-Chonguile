@@ -1,0 +1,55 @@
+{
+  "entities": {
+    "Product": {
+      "title": "Product",
+      "description": "A product available in the store",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "price": { "type": "string" },
+        "desc": { "type": "string" },
+        "img": { "type": "string", "format": "url" },
+        "createdAt": { "type": "timestamp" }
+      },
+      "required": ["name", "price", "desc", "img"]
+    },
+    "Course": {
+      "title": "Course",
+      "description": "An online course",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "price": { "type": "string" },
+        "desc": { "type": "string" },
+        "createdAt": { "type": "timestamp" }
+      },
+      "required": ["title", "price", "desc"]
+    },
+    "Setting": {
+      "title": "Setting",
+      "description": "Global site settings",
+      "type": "object",
+      "properties": {
+        "aboutText": { "type": "string" },
+        "contactEmail": { "type": "string" },
+        "contactPhone": { "type": "string" },
+        "heroTitle": { "type": "string" },
+        "heroSubtitle": { "type": "string" }
+      }
+    }
+  },
+  "firestore": {
+    "/products/{productId}": {
+      "schema": { "$ref": "#/entities/Product" },
+      "description": "Products available for purchase"
+    },
+    "/courses/{courseId}": {
+      "schema": { "$ref": "#/entities/Course" },
+      "description": "Courses available for enrollment"
+    },
+    "/settings/{settingId}": {
+      "schema": { "$ref": "#/entities/Setting" },
+      "description": "Global settings for the site"
+    }
+  }
+}

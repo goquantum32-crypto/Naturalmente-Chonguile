@@ -1,0 +1,341 @@
+import React, { useState, useEffect } from 'react';
+import { collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { db, auth, loginWithGoogle, logout } from '../firebase';
+import { onAuthStateChanged } from 'firebase/auth';
+import { Plus, Trash2, Edit2, LogOut, Settings, Package, BookOpen } from 'lucide-react';
+
+export default function Admin() {
+  const [user, setUser] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState<'products' | 'courses' | 'settings'>('products');
+
+  const [products, setProducts] = useState<any[]>([]);
+  const [courses, setCourses] = useState<any[]>([]);
+  const [settings, setSettings] = useState<any>({});
+
+  // Form states
+  const [productForm, setProductForm] = useState({ name: '', price: '', desc: '', img: '' });
+  const [courseForm, setCourseForm] = useState({ title: '', price: '', desc: '' });
+  const [settingsForm, setSettingsForm] = useState({ heroTitle: '', heroSubtitle: '', aboutText: '', contactEmail: '', contactPhone: '' });
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+    });
+    return unsubscribe;
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const unsubProducts = onSnapshot(collection(db, 'products'), (snapshot) => {
+      setProducts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+    const unsubCourses = onSnapshot(collection(db, 'courses'), (snapshot) => {
+      setCourses(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+    const unsubSettings = onSnapshot(collection(db, 'settings'), (snapshot) => {
+      if (!snapshot.empty) {
+        const data = snapshot.docs[0].data();
+        setSettings({ id: snapshot.docs[0].id, ...data });
+        setSettingsForm({
+          heroTitle: data.heroTitle || '',
+          heroSubtitle: data.heroSubtitle || '',
+          aboutText: data.aboutText || '',
+          contactEmail: data.contactEmail || '',
+          contactPhone: data.contactPhone || ''
+        });
+      }
+    });
+
+    return () => {
+      unsubProducts();
+      unsubCourses();
+      unsubSettings();
+    };
+  }, [user]);
+
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-brand-bg">
+        <div className="bg-white p-8 rounded-2xl shadow-sm text-center max-w-md w-full">
+          <h1 className="text-2xl font-serif font-bold text-brand-green mb-6">Área de Administração</h1>
+          <p className="text-sm text-gray-600 mb-8">Faça login com sua conta Google para acessar o painel de controle.</p>
+          <button 
+            onClick={loginWithGoogle}
+            className="w-full bg-brand-gold text-brand-bg py-3 rounded-xl font-bold hover:bg-brand-gold/90 transition-colors"
+          >
+            Entrar com Google
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const handleAddProduct = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await addDoc(collection(db, 'products'), {
+        ...productForm,
+        createdAt: serverTimestamp()
+      });
+      setProductForm({ name: '', price: '', desc: '', img: '' });
+    } catch (error) {
+      console.error("Error adding product:", error);
+      alert("Erro ao adicionar produto. Verifique se você tem permissão de administrador.");
+    }
+  };
+
+  const handleDeleteProduct = async (id: string) => {
+    if (window.confirm('Tem certeza que deseja excluir este produto?')) {
+      try {
+        await deleteDoc(doc(db, 'products', id));
+      } catch (error) {
+        console.error("Error deleting product:", error);
+      }
+    }
+  };
+
+  const handleAddCourse = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await addDoc(collection(db, 'courses'), {
+        ...courseForm,
+        createdAt: serverTimestamp()
+      });
+      setCourseForm({ title: '', price: '', desc: '' });
+    } catch (error) {
+      console.error("Error adding course:", error);
+      alert("Erro ao adicionar curso. Verifique se você tem permissão de administrador.");
+    }
+  };
+
+  const handleDeleteCourse = async (id: string) => {
+    if (window.confirm('Tem certeza que deseja excluir este curso?')) {
+      try {
+        await deleteDoc(doc(db, 'courses', id));
+      } catch (error) {
+        console.error("Error deleting course:", error);
+      }
+    }
+  };
+
+  const handleSaveSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      if (settings.id) {
+        await updateDoc(doc(db, 'settings', settings.id), settingsForm);
+      } else {
+        await addDoc(collection(db, 'settings'), settingsForm);
+      }
+      alert("Configurações salvas com sucesso!");
+    } catch (error) {
+      console.error("Error saving settings:", error);
+      alert("Erro ao salvar configurações.");
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-brand-bg flex">
+      {/* Sidebar */}
+      <div className="w-64 bg-white border-r border-gray-200 p-6 flex flex-col">
+        <div className="mb-8">
+          <h2 className="text-xl font-serif font-bold text-brand-green">Admin Panel</h2>
+          <p className="text-xs text-gray-500 mt-1">{user.email}</p>
+        </div>
+
+        <nav className="flex-1 space-y-2">
+          <button 
+            onClick={() => setActiveTab('products')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${activeTab === 'products' ? 'bg-brand-green text-white' : 'text-gray-600 hover:bg-gray-50'}`}
+          >
+            <Package size={18} /> Produtos
+          </button>
+          <button 
+            onClick={() => setActiveTab('courses')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${activeTab === 'courses' ? 'bg-brand-green text-white' : 'text-gray-600 hover:bg-gray-50'}`}
+          >
+            <BookOpen size={18} /> Cursos
+          </button>
+          <button 
+            onClick={() => setActiveTab('settings')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${activeTab === 'settings' ? 'bg-brand-green text-white' : 'text-gray-600 hover:bg-gray-50'}`}
+          >
+            <Settings size={18} /> Configurações
+          </button>
+        </nav>
+
+        <button 
+          onClick={logout}
+          className="mt-auto flex items-center gap-3 px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-50 rounded-xl transition-colors"
+        >
+          <LogOut size={18} /> Sair
+        </button>
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-1 p-8 overflow-y-auto">
+        {activeTab === 'products' && (
+          <div className="max-w-4xl mx-auto">
+            <h2 className="text-2xl font-serif font-bold text-brand-green mb-6">Gerenciar Produtos</h2>
+            
+            <form onSubmit={handleAddProduct} className="bg-white p-6 rounded-2xl shadow-sm mb-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="col-span-full">
+                <h3 className="text-lg font-bold mb-4">Adicionar Novo Produto</h3>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Nome do Produto</label>
+                <input required type="text" value={productForm.name} onChange={e => setProductForm({...productForm, name: e.target.value})} className="w-full p-2 border rounded-lg text-sm" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Preço (ex: 750 MT)</label>
+                <input required type="text" value={productForm.price} onChange={e => setProductForm({...productForm, price: e.target.value})} className="w-full p-2 border rounded-lg text-sm" />
+              </div>
+              <div className="col-span-full">
+                <label className="block text-xs font-bold text-gray-700 mb-1">URL da Imagem</label>
+                <input required type="url" value={productForm.img} onChange={e => setProductForm({...productForm, img: e.target.value})} className="w-full p-2 border rounded-lg text-sm" />
+              </div>
+              <div className="col-span-full">
+                <label className="block text-xs font-bold text-gray-700 mb-1">Descrição</label>
+                <textarea required value={productForm.desc} onChange={e => setProductForm({...productForm, desc: e.target.value})} className="w-full p-2 border rounded-lg text-sm" rows={3}></textarea>
+              </div>
+              <div className="col-span-full flex justify-end">
+                <button type="submit" className="bg-brand-gold text-brand-bg px-6 py-2 rounded-lg font-bold text-sm flex items-center gap-2">
+                  <Plus size={16} /> Adicionar
+                </button>
+              </div>
+            </form>
+
+            <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-gray-50 text-gray-600">
+                  <tr>
+                    <th className="p-4 font-medium">Imagem</th>
+                    <th className="p-4 font-medium">Nome</th>
+                    <th className="p-4 font-medium">Preço</th>
+                    <th className="p-4 font-medium">Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {products.map(product => (
+                    <tr key={product.id} className="border-t border-gray-100">
+                      <td className="p-4">
+                        <img src={product.img} alt={product.name} className="w-12 h-12 rounded object-cover" />
+                      </td>
+                      <td className="p-4 font-medium">{product.name}</td>
+                      <td className="p-4 text-gray-600">{product.price}</td>
+                      <td className="p-4">
+                        <button onClick={() => handleDeleteProduct(product.id)} className="text-red-500 hover:text-red-700 p-2">
+                          <Trash2 size={16} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {products.length === 0 && (
+                    <tr>
+                      <td colSpan={4} className="p-8 text-center text-gray-500">Nenhum produto cadastrado.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'courses' && (
+          <div className="max-w-4xl mx-auto">
+            <h2 className="text-2xl font-serif font-bold text-brand-green mb-6">Gerenciar Cursos</h2>
+            
+            <form onSubmit={handleAddCourse} className="bg-white p-6 rounded-2xl shadow-sm mb-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="col-span-full">
+                <h3 className="text-lg font-bold mb-4">Adicionar Novo Curso</h3>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Título do Curso</label>
+                <input required type="text" value={courseForm.title} onChange={e => setCourseForm({...courseForm, title: e.target.value})} className="w-full p-2 border rounded-lg text-sm" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Preço (ex: 1.500 MT)</label>
+                <input required type="text" value={courseForm.price} onChange={e => setCourseForm({...courseForm, price: e.target.value})} className="w-full p-2 border rounded-lg text-sm" />
+              </div>
+              <div className="col-span-full">
+                <label className="block text-xs font-bold text-gray-700 mb-1">Descrição</label>
+                <textarea required value={courseForm.desc} onChange={e => setCourseForm({...courseForm, desc: e.target.value})} className="w-full p-2 border rounded-lg text-sm" rows={3}></textarea>
+              </div>
+              <div className="col-span-full flex justify-end">
+                <button type="submit" className="bg-brand-gold text-brand-bg px-6 py-2 rounded-lg font-bold text-sm flex items-center gap-2">
+                  <Plus size={16} /> Adicionar
+                </button>
+              </div>
+            </form>
+
+            <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-gray-50 text-gray-600">
+                  <tr>
+                    <th className="p-4 font-medium">Título</th>
+                    <th className="p-4 font-medium">Preço</th>
+                    <th className="p-4 font-medium">Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {courses.map(course => (
+                    <tr key={course.id} className="border-t border-gray-100">
+                      <td className="p-4 font-medium">{course.title}</td>
+                      <td className="p-4 text-gray-600">{course.price}</td>
+                      <td className="p-4">
+                        <button onClick={() => handleDeleteCourse(course.id)} className="text-red-500 hover:text-red-700 p-2">
+                          <Trash2 size={16} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {courses.length === 0 && (
+                    <tr>
+                      <td colSpan={3} className="p-8 text-center text-gray-500">Nenhum curso cadastrado.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'settings' && (
+          <div className="max-w-2xl mx-auto">
+            <h2 className="text-2xl font-serif font-bold text-brand-green mb-6">Configurações do Site</h2>
+            
+            <form onSubmit={handleSaveSettings} className="bg-white p-6 rounded-2xl shadow-sm space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Título Principal (Hero)</label>
+                <input type="text" value={settingsForm.heroTitle} onChange={e => setSettingsForm({...settingsForm, heroTitle: e.target.value})} className="w-full p-2 border rounded-lg text-sm" placeholder="Cuide do seu cabelo naturalmente" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Subtítulo (Hero)</label>
+                <textarea value={settingsForm.heroSubtitle} onChange={e => setSettingsForm({...settingsForm, heroSubtitle: e.target.value})} className="w-full p-2 border rounded-lg text-sm" rows={2} placeholder="Descubra o poder da natureza..."></textarea>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Texto "Sobre Mim"</label>
+                <textarea value={settingsForm.aboutText} onChange={e => setSettingsForm({...settingsForm, aboutText: e.target.value})} className="w-full p-2 border rounded-lg text-sm" rows={6}></textarea>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Email de Contacto</label>
+                  <input type="email" value={settingsForm.contactEmail} onChange={e => setSettingsForm({...settingsForm, contactEmail: e.target.value})} className="w-full p-2 border rounded-lg text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Telefone (WhatsApp)</label>
+                  <input type="text" value={settingsForm.contactPhone} onChange={e => setSettingsForm({...settingsForm, contactPhone: e.target.value})} className="w-full p-2 border rounded-lg text-sm" />
+                </div>
+              </div>
+              <div className="pt-4 flex justify-end">
+                <button type="submit" className="bg-brand-green text-white px-6 py-2 rounded-lg font-bold text-sm">
+                  Salvar Configurações
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
