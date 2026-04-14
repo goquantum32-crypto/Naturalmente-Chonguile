@@ -19,7 +19,7 @@ export default function Admin() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [courseForm, setCourseForm] = useState({ title: '', price: '', desc: '' });
-  const [settingsForm, setSettingsForm] = useState({ heroTitle: '', heroSubtitle: '', aboutText: '', contactEmail: '', contactPhone: '' });
+  const [settingsForm, setSettingsForm] = useState({ heroTitle: '', heroSubtitle: '', aboutText: '', contactEmail: '', contactPhone: '', instagramUrl: '' });
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [heroBgFile, setHeroBgFile] = useState<File | null>(null);
 
@@ -48,7 +48,8 @@ export default function Admin() {
           heroSubtitle: data.heroSubtitle || '',
           aboutText: data.aboutText || '',
           contactEmail: data.contactEmail || '',
-          contactPhone: data.contactPhone || ''
+          contactPhone: data.contactPhone || '',
+          instagramUrl: data.instagramUrl || ''
         });
       }
     });
@@ -414,7 +415,7 @@ export default function Admin() {
                 <label className="block text-xs font-bold text-gray-700 mb-1">Texto "Sobre Mim"</label>
                 <textarea value={settingsForm.aboutText} onChange={e => setSettingsForm({...settingsForm, aboutText: e.target.value})} className="w-full p-2 border rounded-lg text-sm" rows={6}></textarea>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-gray-700 mb-1">Email de Contacto</label>
                   <input type="email" value={settingsForm.contactEmail} onChange={e => setSettingsForm({...settingsForm, contactEmail: e.target.value})} className="w-full p-2 border rounded-lg text-sm" />
@@ -422,6 +423,10 @@ export default function Admin() {
                 <div>
                   <label className="block text-xs font-bold text-gray-700 mb-1">Telefone (WhatsApp)</label>
                   <input type="text" value={settingsForm.contactPhone} onChange={e => setSettingsForm({...settingsForm, contactPhone: e.target.value})} className="w-full p-2 border rounded-lg text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Link do Instagram</label>
+                  <input type="url" value={settingsForm.instagramUrl} onChange={e => setSettingsForm({...settingsForm, instagramUrl: e.target.value})} className="w-full p-2 border rounded-lg text-sm" placeholder="https://instagram.com/..." />
                 </div>
               </div>
               

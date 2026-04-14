@@ -32,6 +32,7 @@ service cloud.firestore {
     //   - heroSubtitle: string (optional, max 500)
     //   - logoUrl: string (optional, URL format)
     //   - heroBgUrl: string (optional, URL format)
+    //   - instagramUrl: string (optional, URL format)
     //
     // Collection: testimonials
     // Document ID: auto-generated
@@ -115,14 +116,15 @@ service cloud.firestore {
     }
     
     function isValidSetting() {
-      return hasOnlyAllowedFields(['aboutText', 'contactEmail', 'contactPhone', 'heroTitle', 'heroSubtitle', 'logoUrl', 'heroBgUrl']) &&
+      return hasOnlyAllowedFields(['aboutText', 'contactEmail', 'contactPhone', 'heroTitle', 'heroSubtitle', 'logoUrl', 'heroBgUrl', 'instagramUrl']) &&
              isValidOptionalString('aboutText', 0, 2000) &&
              (!('contactEmail' in request.resource.data) || isValidEmail(request.resource.data.contactEmail)) &&
              isValidOptionalString('contactPhone', 0, 50) &&
              isValidOptionalString('heroTitle', 0, 200) &&
              isValidOptionalString('heroSubtitle', 0, 500) &&
              isValidOptionalString('logoUrl', 0, 1000) &&
-             isValidOptionalString('heroBgUrl', 0, 1000);
+             isValidOptionalString('heroBgUrl', 0, 1000) &&
+             isValidOptionalString('instagramUrl', 0, 1000);
     }
     
     function isValidTestimonial() {

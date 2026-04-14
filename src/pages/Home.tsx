@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { collection, onSnapshot, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 
-const WHATSAPP_NUMBER = "258840000000"; // Placeholder Mozambican number
+const WHATSAPP_NUMBER = "258874559994"; // Mozambican number
 
 const openWhatsApp = (message: string) => {
   const encodedMessage = encodeURIComponent(message);
@@ -387,11 +387,11 @@ Hoje, a minha missão é ajudar outras mulheres a apaixonarem-se pelo seu cabelo
       <div className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto pb-8 pt-8">
         <footer id="contacto" className="bg-white rounded-2xl border border-brand-green/5 py-6 px-8 flex flex-col md:flex-row justify-between items-center gap-6 shadow-[0_4px_12px_rgba(0,0,0,0.03)]">
           <div className="flex flex-col sm:flex-row gap-4 sm:gap-10 text-[13px] text-brand-text">
-            <span className="flex items-center gap-2"><Mail size={16} className="text-brand-gold"/> {settings.contactEmail || 'info@chonguile.co.mz'}</span>
-            <span className="flex items-center gap-2"><MessageCircle size={16} className="text-brand-green"/> {settings.contactPhone || '+258 84 000 0000'}</span>
+            <span className="flex items-center gap-2"><Mail size={16} className="text-brand-gold"/> {settings.contactEmail || 'naturalmente.chonguile@gmail.com'}</span>
+            <span className="flex items-center gap-2"><MessageCircle size={16} className="text-brand-green"/> {settings.contactPhone || '+258 87 455 9994'}</span>
           </div>
           <div className="flex gap-6 text-[13px]">
-            <a href="#" className="text-brand-green font-semibold hover:text-brand-gold transition-colors">Instagram</a>
+            <a href={settings.instagramUrl || "https://www.instagram.com/chonguilehairstudio?igsh=MXEzbGxsYjJ4dDLn&utm_source+qr"} target="_blank" rel="noopener noreferrer" className="text-brand-green font-semibold hover:text-brand-gold transition-colors">Instagram</a>
             <a href="#" className="text-brand-green font-semibold hover:text-brand-gold transition-colors">Facebook</a>
             <a href="#" className="text-brand-green font-semibold hover:text-brand-gold transition-colors">YouTube</a>
           </div>
