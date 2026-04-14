@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { db, auth, loginWithGoogle, logout } from '../firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { db, auth, storage, loginWithGoogle, logout } from '../firebase';
 import { onAuthStateChanged } from 'firebase/auth';
-import { Plus, Trash2, Edit2, LogOut, Settings, Package, BookOpen } from 'lucide-react';
+import { Plus, Trash2, Edit2, LogOut, Settings, Package, BookOpen, Upload } from 'lucide-react';
 
 export default function Admin() {
   const [user, setUser] = useState<any>(null);
@@ -13,7 +14,9 @@ export default function Admin() {
   const [settings, setSettings] = useState<any>({});
 
   // Form states
-  const [productForm, setProductForm] = useState({ name: '', price: '', desc: '', img: '' });
+  const [productForm, setProductForm] = useState({ name: '', price: '', desc: '' });
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
   const [courseForm, setCourseForm] = useState({ title: '', price: '', desc: '' });
   const [settingsForm, setSettingsForm] = useState({ heroTitle: '', heroSubtitle: '', aboutText: '', contactEmail: '', contactPhone: '' });
 
@@ -73,15 +76,36 @@ export default function Admin() {
 
   const handleAddProduct = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!imageFile) {
+      alert("Por favor, selecione uma imagem para o produto.");
+      return;
+    }
+
+    setIsUploading(true);
     try {
+      // 1. Upload image to Firebase Storage
+      const storageRef = ref(storage, `products/${Date.now()}_${imageFile.name}`);
+      const snapshot = await uploadBytes(storageRef, imageFile);
+      const downloadURL = await getDownloadURL(snapshot.ref);
+
+      // 2. Save product to Firestore with the image URL
       await addDoc(collection(db, 'products'), {
         ...productForm,
+        img: downloadURL,
         createdAt: serverTimestamp()
       });
-      setProductForm({ name: '', price: '', desc: '', img: '' });
+      
+      setProductForm({ name: '', price: '', desc: '' });
+      setImageFile(null);
+      // Reset file input
+      const fileInput = document.getElementById('product-image') as HTMLInputElement;
+      if (fileInput) fileInput.value = '';
+      
     } catch (error) {
       console.error("Error adding product:", error);
       alert("Erro ao adicionar produto. Verifique se você tem permissão de administrador.");
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -191,16 +215,40 @@ export default function Admin() {
                 <input required type="text" value={productForm.price} onChange={e => setProductForm({...productForm, price: e.target.value})} className="w-full p-2 border rounded-lg text-sm" />
               </div>
               <div className="col-span-full">
-                <label className="block text-xs font-bold text-gray-700 mb-1">URL da Imagem</label>
-                <input required type="url" value={productForm.img} onChange={e => setProductForm({...productForm, img: e.target.value})} className="w-full p-2 border rounded-lg text-sm" />
+                <label className="block text-xs font-bold text-gray-700 mb-1">Imagem do Produto</label>
+                <div className="flex items-center gap-4">
+                  <label className="flex-1 cursor-pointer bg-gray-50 border border-dashed border-gray-300 hover:border-brand-green p-4 rounded-lg flex flex-col items-center justify-center transition-colors">
+                    <Upload size={24} className="text-gray-400 mb-2" />
+                    <span className="text-sm text-gray-600 font-medium">
+                      {imageFile ? imageFile.name : 'Clique para selecionar uma imagem'}
+                    </span>
+                    <input 
+                      id="product-image"
+                      type="file" 
+                      accept="image/*" 
+                      required 
+                      className="hidden" 
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files[0]) {
+                          setImageFile(e.target.files[0]);
+                        }
+                      }} 
+                    />
+                  </label>
+                  {imageFile && (
+                    <div className="w-16 h-16 rounded-lg overflow-hidden border border-gray-200">
+                      <img src={URL.createObjectURL(imageFile)} alt="Preview" className="w-full h-full object-cover" />
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="col-span-full">
                 <label className="block text-xs font-bold text-gray-700 mb-1">Descrição</label>
                 <textarea required value={productForm.desc} onChange={e => setProductForm({...productForm, desc: e.target.value})} className="w-full p-2 border rounded-lg text-sm" rows={3}></textarea>
               </div>
               <div className="col-span-full flex justify-end">
-                <button type="submit" className="bg-brand-gold text-brand-bg px-6 py-2 rounded-lg font-bold text-sm flex items-center gap-2">
-                  <Plus size={16} /> Adicionar
+                <button disabled={isUploading} type="submit" className="bg-brand-gold text-brand-bg px-6 py-2 rounded-lg font-bold text-sm flex items-center gap-2 disabled:opacity-50">
+                  {isUploading ? 'A enviar...' : <><Plus size={16} /> Adicionar</>}
                 </button>
               </div>
             </form>
