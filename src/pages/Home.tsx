@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, X, ShoppingBag, BookOpen, Mail, MessageCircle } from 'lucide-react';
+import { Menu, X, ShoppingBag, BookOpen, Mail, MessageCircle, Send } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { collection, onSnapshot } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 
 const WHATSAPP_NUMBER = "258840000000"; // Placeholder Mozambican number
@@ -18,6 +18,10 @@ export default function Home() {
   const [products, setProducts] = useState<any[]>([]);
   const [courses, setCourses] = useState<any[]>([]);
   const [settings, setSettings] = useState<any>({});
+  const [testimonials, setTestimonials] = useState<any[]>([]);
+  
+  const [testimonialForm, setTestimonialForm] = useState({ name: '', text: '' });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -39,13 +43,35 @@ export default function Home() {
         setSettings(snapshot.docs[0].data());
       }
     });
+    const unsubTestimonials = onSnapshot(collection(db, 'testimonials'), (snapshot) => {
+      setTestimonials(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
 
     return () => {
       unsubProducts();
       unsubCourses();
       unsubSettings();
+      unsubTestimonials();
     };
   }, []);
+
+  const handleAddTestimonial = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    try {
+      await addDoc(collection(db, 'testimonials'), {
+        ...testimonialForm,
+        createdAt: serverTimestamp()
+      });
+      setTestimonialForm({ name: '', text: '' });
+      alert("Obrigado pelo seu depoimento!");
+    } catch (error) {
+      console.error("Error adding testimonial:", error);
+      alert("Erro ao enviar depoimento. Tente novamente.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const scrollTo = (id: string) => {
     setMobileMenuOpen(false);
@@ -61,9 +87,13 @@ export default function Home() {
       <nav className={`fixed w-full z-50 transition-all duration-300 ${isScrolled ? 'bg-brand-bg/95 backdrop-blur-md shadow-sm py-3 border-b border-brand-green/10' : 'bg-transparent py-5 border-b border-brand-green/10'}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center">
           <div className="flex items-center gap-3 cursor-pointer" onClick={() => scrollTo('home')}>
-            <div className="w-10 h-10 bg-brand-green rounded-full flex items-center justify-center text-brand-gold font-bold text-xl">
-              NC
-            </div>
+            {settings.logoUrl ? (
+              <img src={settings.logoUrl} alt="Naturalmente Chonguile Logo" className="h-10 w-auto object-contain" />
+            ) : (
+              <div className="w-10 h-10 bg-brand-green rounded-full flex items-center justify-center text-brand-gold font-bold text-xl">
+                NC
+              </div>
+            )}
             <span className={`font-serif text-2xl italic tracking-wide ${isScrolled ? 'text-brand-green' : 'text-brand-green'}`}>
               Naturalmente Chonguile
             </span>
@@ -125,7 +155,7 @@ export default function Home() {
         <div className="bg-brand-green rounded-2xl h-[500px] relative overflow-hidden p-8 md:p-12 flex flex-col justify-end text-brand-bg">
           <div className="absolute inset-0 z-0">
             <img 
-              src="https://images.unsplash.com/photo-1531123897727-8f129e1bfd8c?q=80&w=2574&auto=format&fit=crop" 
+              src={settings.heroBgUrl || "https://images.unsplash.com/photo-1531123897727-8f129e1bfd8c?q=80&w=2574&auto=format&fit=crop"} 
               alt="Mulher africana com cabelo natural" 
               className="w-full h-full object-cover object-top opacity-60 mix-blend-overlay"
               referrerPolicy="no-referrer"
@@ -292,35 +322,63 @@ Hoje, a minha missão é ajudar outras mulheres a apaixonarem-se pelo seu cabelo
       </section>
 
       {/* Testimonials */}
-      <section id="depoimentos" className="py-8">
+      <section id="depoimentos" className="py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[
-              {
-                name: "Maria S., Maputo",
-                text: "Os óleos da Chonguile mudaram a textura do meu cabelo em apenas 3 semanas. Incrível!",
-              },
-              {
-                name: "Aline M., Matola",
-                text: "Fiz o curso de Cronograma Capilar e finalmente entendi o meu cabelo. Os produtos são maravilhosos.",
-              },
-              {
-                name: "Jessica T., Beira",
-                text: "O creme de pentear deixa os meus cachos definidos por dias. Nunca usei nada igual.",
-              }
-            ].map((testimonial, i) => (
+          <div className="flex justify-between items-center border-l-4 border-brand-gold pl-3 mb-8">
+            <h2 className="text-2xl font-serif text-brand-green">O que dizem as nossas clientes</h2>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+            {testimonials.length > 0 ? testimonials.map((testimonial, i) => (
               <motion.div 
-                key={i}
+                key={testimonial.id}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
-                className="bg-brand-gold/10 p-5 rounded-xl italic text-xs text-[#444] leading-relaxed"
+                className="bg-brand-gold/10 p-6 rounded-2xl italic text-sm text-[#444] leading-relaxed shadow-sm"
               >
                 "{testimonial.text}"<br/>
-                <strong className="mt-2 block font-sans not-italic text-brand-text">— {testimonial.name}</strong>
+                <strong className="mt-3 block font-sans not-italic text-brand-text">— {testimonial.name}</strong>
               </motion.div>
-            ))}
+            )) : (
+              <p className="text-sm text-gray-500 col-span-full">Seja a primeira a deixar um depoimento!</p>
+            )}
+          </div>
+
+          <div className="max-w-xl mx-auto bg-white p-8 rounded-2xl shadow-[0_4px_12px_rgba(0,0,0,0.03)] border border-brand-green/5">
+            <h3 className="text-lg font-serif font-bold text-brand-green mb-6 text-center">Deixe o seu depoimento</h3>
+            <form onSubmit={handleAddTestimonial} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">O seu nome</label>
+                <input 
+                  required 
+                  type="text" 
+                  value={testimonialForm.name} 
+                  onChange={e => setTestimonialForm({...testimonialForm, name: e.target.value})} 
+                  className="w-full p-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-brand-green transition-colors" 
+                  placeholder="Ex: Maria S."
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">A sua experiência</label>
+                <textarea 
+                  required 
+                  value={testimonialForm.text} 
+                  onChange={e => setTestimonialForm({...testimonialForm, text: e.target.value})} 
+                  className="w-full p-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-brand-green transition-colors" 
+                  rows={4}
+                  placeholder="Conte-nos o que achou dos produtos ou cursos..."
+                ></textarea>
+              </div>
+              <button 
+                disabled={isSubmitting} 
+                type="submit" 
+                className="w-full bg-brand-green text-white py-3 rounded-xl font-bold text-sm transition-colors hover:bg-brand-green/90 flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {isSubmitting ? 'A enviar...' : <><Send size={16} /> Enviar Depoimento</>}
+              </button>
+            </form>
           </div>
         </div>
       </section>

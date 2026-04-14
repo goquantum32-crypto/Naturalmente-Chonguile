@@ -30,6 +30,15 @@ service cloud.firestore {
     //   - contactPhone: string (optional, max 50)
     //   - heroTitle: string (optional, max 200)
     //   - heroSubtitle: string (optional, max 500)
+    //   - logoUrl: string (optional, URL format)
+    //   - heroBgUrl: string (optional, URL format)
+    //
+    // Collection: testimonials
+    // Document ID: auto-generated
+    // Fields:
+    //   - name: string (required, max 100)
+    //   - text: string (required, max 1000)
+    //   - createdAt: timestamp (immutable)
     //
     // Collection: users
     // Document ID: uid
@@ -106,12 +115,22 @@ service cloud.firestore {
     }
     
     function isValidSetting() {
-      return hasOnlyAllowedFields(['aboutText', 'contactEmail', 'contactPhone', 'heroTitle', 'heroSubtitle']) &&
+      return hasOnlyAllowedFields(['aboutText', 'contactEmail', 'contactPhone', 'heroTitle', 'heroSubtitle', 'logoUrl', 'heroBgUrl']) &&
              isValidOptionalString('aboutText', 0, 2000) &&
              (!('contactEmail' in request.resource.data) || isValidEmail(request.resource.data.contactEmail)) &&
              isValidOptionalString('contactPhone', 0, 50) &&
              isValidOptionalString('heroTitle', 0, 200) &&
-             isValidOptionalString('heroSubtitle', 0, 500);
+             isValidOptionalString('heroSubtitle', 0, 500) &&
+             isValidOptionalString('logoUrl', 0, 1000) &&
+             isValidOptionalString('heroBgUrl', 0, 1000);
+    }
+    
+    function isValidTestimonial() {
+      return hasOnlyAllowedFields(['name', 'text', 'createdAt']) &&
+             hasRequiredFields(['name', 'text']) &&
+             validStringLength('name', 1, 100) &&
+             validStringLength('text', 1, 1000) &&
+             (!('createdAt' in request.resource.data) || request.resource.data.createdAt is timestamp);
     }
     
     function isValidUser() {
@@ -153,6 +172,14 @@ service cloud.firestore {
       allow read: if true;
       allow create: if isAdmin() && isValidSetting();
       allow update: if isAdmin() && isValidSetting();
+      allow delete: if isAdmin();
+    }
+
+    match /testimonials/{testimonialId} {
+      allow read: if true;
+      allow create: if isValidTestimonial();
+      allow update: if isAdmin() && isValidTestimonial() && 
+                    (!('createdAt' in request.resource.data) || request.resource.data.createdAt == resource.data.createdAt);
       allow delete: if isAdmin();
     }
   }

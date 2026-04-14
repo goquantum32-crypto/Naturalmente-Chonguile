@@ -3,15 +3,16 @@ import { collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc, setDoc, serv
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, auth, storage, loginWithGoogle, logout } from '../firebase';
 import { onAuthStateChanged } from 'firebase/auth';
-import { Plus, Trash2, Edit2, LogOut, Settings, Package, BookOpen, Upload } from 'lucide-react';
+import { Plus, Trash2, Edit2, LogOut, Settings, Package, BookOpen, Upload, MessageSquare } from 'lucide-react';
 
 export default function Admin() {
   const [user, setUser] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState<'products' | 'courses' | 'settings'>('products');
+  const [activeTab, setActiveTab] = useState<'products' | 'courses' | 'settings' | 'testimonials'>('products');
 
   const [products, setProducts] = useState<any[]>([]);
   const [courses, setCourses] = useState<any[]>([]);
   const [settings, setSettings] = useState<any>({});
+  const [testimonials, setTestimonials] = useState<any[]>([]);
 
   // Form states
   const [productForm, setProductForm] = useState({ name: '', price: '', desc: '' });
@@ -19,6 +20,8 @@ export default function Admin() {
   const [isUploading, setIsUploading] = useState(false);
   const [courseForm, setCourseForm] = useState({ title: '', price: '', desc: '' });
   const [settingsForm, setSettingsForm] = useState({ heroTitle: '', heroSubtitle: '', aboutText: '', contactEmail: '', contactPhone: '' });
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [heroBgFile, setHeroBgFile] = useState<File | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -49,11 +52,15 @@ export default function Admin() {
         });
       }
     });
+    const unsubTestimonials = onSnapshot(collection(db, 'testimonials'), (snapshot) => {
+      setTestimonials(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
 
     return () => {
       unsubProducts();
       unsubCourses();
       unsubSettings();
+      unsubTestimonials();
     };
   }, [user]);
 
@@ -143,18 +150,54 @@ export default function Admin() {
     }
   };
 
+  const handleDeleteTestimonial = async (id: string) => {
+    if (window.confirm('Tem certeza que deseja excluir este depoimento?')) {
+      try {
+        await deleteDoc(doc(db, 'testimonials', id));
+      } catch (error) {
+        console.error("Error deleting testimonial:", error);
+      }
+    }
+  };
+
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsUploading(true);
     try {
-      if (settings.id) {
-        await updateDoc(doc(db, 'settings', settings.id), settingsForm);
-      } else {
-        await addDoc(collection(db, 'settings'), settingsForm);
+      let updatedSettings = { ...settingsForm } as any;
+
+      if (logoFile) {
+        const logoRef = ref(storage, `settings/logo_${Date.now()}_${logoFile.name}`);
+        await uploadBytes(logoRef, logoFile);
+        updatedSettings.logoUrl = await getDownloadURL(logoRef);
       }
+
+      if (heroBgFile) {
+        const bgRef = ref(storage, `settings/bg_${Date.now()}_${heroBgFile.name}`);
+        await uploadBytes(bgRef, heroBgFile);
+        updatedSettings.heroBgUrl = await getDownloadURL(bgRef);
+      }
+
+      if (settings.id) {
+        await updateDoc(doc(db, 'settings', settings.id), updatedSettings);
+      } else {
+        await addDoc(collection(db, 'settings'), updatedSettings);
+      }
+      
       alert("Configurações salvas com sucesso!");
+      setLogoFile(null);
+      setHeroBgFile(null);
+      
+      const logoInput = document.getElementById('logo-image') as HTMLInputElement;
+      if (logoInput) logoInput.value = '';
+      const bgInput = document.getElementById('bg-image') as HTMLInputElement;
+      if (bgInput) bgInput.value = '';
+
     } catch (error) {
       console.error("Error saving settings:", error);
       alert("Erro ao salvar configurações.");
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -185,6 +228,12 @@ export default function Admin() {
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${activeTab === 'settings' ? 'bg-brand-green text-white' : 'text-gray-600 hover:bg-gray-50'}`}
           >
             <Settings size={18} /> Configurações
+          </button>
+          <button 
+            onClick={() => setActiveTab('testimonials')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${activeTab === 'testimonials' ? 'bg-brand-green text-white' : 'text-gray-600 hover:bg-gray-50'}`}
+          >
+            <MessageSquare size={18} /> Depoimentos
           </button>
         </nav>
 
@@ -375,12 +424,119 @@ export default function Admin() {
                   <input type="text" value={settingsForm.contactPhone} onChange={e => setSettingsForm({...settingsForm, contactPhone: e.target.value})} className="w-full p-2 border rounded-lg text-sm" />
                 </div>
               </div>
+              
+              <div className="pt-4 border-t border-gray-100">
+                <h3 className="text-sm font-bold text-gray-900 mb-4">Imagens do Site</h3>
+                
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">Logotipo (Substitui o "NC")</label>
+                    <div className="flex items-center gap-4">
+                      <label className="flex-1 cursor-pointer bg-gray-50 border border-dashed border-gray-300 hover:border-brand-green p-3 rounded-lg flex items-center justify-center transition-colors">
+                        <Upload size={18} className="text-gray-400 mr-2" />
+                        <span className="text-xs text-gray-600 font-medium">
+                          {logoFile ? logoFile.name : 'Selecionar novo logotipo'}
+                        </span>
+                        <input 
+                          id="logo-image"
+                          type="file" 
+                          accept="image/*" 
+                          className="hidden" 
+                          onChange={(e) => {
+                            if (e.target.files && e.target.files[0]) {
+                              setLogoFile(e.target.files[0]);
+                            }
+                          }} 
+                        />
+                      </label>
+                      {logoFile ? (
+                        <div className="w-12 h-12 rounded overflow-hidden border border-gray-200">
+                          <img src={URL.createObjectURL(logoFile)} alt="Preview" className="w-full h-full object-contain" />
+                        </div>
+                      ) : settings.logoUrl ? (
+                        <div className="w-12 h-12 rounded overflow-hidden border border-gray-200">
+                          <img src={settings.logoUrl} alt="Atual" className="w-full h-full object-contain" />
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">Imagem de Fundo (Banner Inicial)</label>
+                    <div className="flex items-center gap-4">
+                      <label className="flex-1 cursor-pointer bg-gray-50 border border-dashed border-gray-300 hover:border-brand-green p-3 rounded-lg flex items-center justify-center transition-colors">
+                        <Upload size={18} className="text-gray-400 mr-2" />
+                        <span className="text-xs text-gray-600 font-medium">
+                          {heroBgFile ? heroBgFile.name : 'Selecionar nova imagem de fundo'}
+                        </span>
+                        <input 
+                          id="bg-image"
+                          type="file" 
+                          accept="image/*" 
+                          className="hidden" 
+                          onChange={(e) => {
+                            if (e.target.files && e.target.files[0]) {
+                              setHeroBgFile(e.target.files[0]);
+                            }
+                          }} 
+                        />
+                      </label>
+                      {heroBgFile ? (
+                        <div className="w-16 h-12 rounded overflow-hidden border border-gray-200">
+                          <img src={URL.createObjectURL(heroBgFile)} alt="Preview" className="w-full h-full object-cover" />
+                        </div>
+                      ) : settings.heroBgUrl ? (
+                        <div className="w-16 h-12 rounded overflow-hidden border border-gray-200">
+                          <img src={settings.heroBgUrl} alt="Atual" className="w-full h-full object-cover" />
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div className="pt-4 flex justify-end">
-                <button type="submit" className="bg-brand-green text-white px-6 py-2 rounded-lg font-bold text-sm">
-                  Salvar Configurações
+                <button disabled={isUploading} type="submit" className="bg-brand-green text-white px-6 py-2 rounded-lg font-bold text-sm disabled:opacity-50">
+                  {isUploading ? 'A guardar...' : 'Salvar Configurações'}
                 </button>
               </div>
             </form>
+          </div>
+        )}
+
+        {activeTab === 'testimonials' && (
+          <div className="max-w-4xl mx-auto">
+            <h2 className="text-2xl font-serif font-bold text-brand-green mb-6">Gerenciar Depoimentos</h2>
+            
+            <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-gray-50 text-gray-600">
+                  <tr>
+                    <th className="p-4 font-medium">Nome</th>
+                    <th className="p-4 font-medium">Depoimento</th>
+                    <th className="p-4 font-medium">Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {testimonials.map(t => (
+                    <tr key={t.id} className="border-t border-gray-100">
+                      <td className="p-4 font-medium whitespace-nowrap">{t.name}</td>
+                      <td className="p-4 text-gray-600">{t.text}</td>
+                      <td className="p-4">
+                        <button onClick={() => handleDeleteTestimonial(t.id)} className="text-red-500 hover:text-red-700 p-2">
+                          <Trash2 size={16} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {testimonials.length === 0 && (
+                    <tr>
+                      <td colSpan={3} className="p-8 text-center text-gray-500">Nenhum depoimento cadastrado.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>
